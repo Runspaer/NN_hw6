@@ -5,7 +5,8 @@ import pygame
 
 import game.flappy_bird_utils as flappy_bird_utils
 
-FPS = 30
+# FPS = 30
+FPS = 1000
 SCREENWIDTH = 288
 SCREENHEIGHT = 512
 
@@ -52,16 +53,31 @@ class GameState:
         self.playerMaxVelY = 10  # max vel along Y, max descend speed
         self.playerMinVelY = -8  # min vel along Y, max ascend speed
         self.playerAccY = 1  # players downward accleration
-        self.playerFlapAcc = -9  # players speed on flapping  # FIXME придумайте, как оптимизировать шаг
+        self.playerFlapAcc = -9  # players speed on flapping
         self.playerFlapped = False  # True when player flaps
         self.playerRot = 45  # player's rotation
         self.playerVelRot = 3  # angular speed
         self.playerRotThr = 20  # rotation threshold
 
-    def frame_step(self, input_actions):
+    def frame_step(self, input_actions,fps=FPS):
         pygame.event.pump()
 
-        reward = 0.1  # FIXME придумайте стратегию награды/наказания
+        reward = 0
+
+        # Небольшой штраф, если в качестве действия выбран прыжок
+        if input_actions[1] == 1:
+            reward = -0.1
+
+        # Небольшой награда, если птица находится в Y окрестности пространства промежутка от передней трубы
+        playerMidPos = self.playerx + PLAYER_WIDTH / 2
+        for i in range(len(self.upperPipes)):
+            pipeMidPos = self.upperPipes[i]['x'] + PIPE_WIDTH / 2
+            if pipeMidPos <= playerMidPos:
+                continue
+            if -self.upperPipes[i]['y'] < self.playery < self.lowerPipes[i]['y']:
+                reward=0.1
+                break
+
         terminal = False
 
         if sum(input_actions) != 1:
@@ -75,12 +91,12 @@ class GameState:
                 self.playerFlapped = True
 
         # check for score
-        playerMidPos = self.playerx + PLAYER_WIDTH / 2
+        # Большая награда, если птица увеличила score
         for pipe in self.upperPipes:
             pipeMidPos = pipe['x'] + PIPE_WIDTH / 2
             if pipeMidPos <= playerMidPos < pipeMidPos + 4:
                 self.score += 1
-                reward = 1  # FIXME придумайте стратегию награды/наказания
+                reward = 10
 
         # playerIndex basex change
         if (self.loopIter + 1) % 3 == 0:
@@ -122,10 +138,12 @@ class GameState:
         isCrash = checkCrash({'x': self.playerx, 'y': self.playery,
                               'index': self.playerIndex},
                              self.upperPipes, self.lowerPipes)
+
+        # Умеренное наказание при поражении
         if isCrash:
             terminal = True
             self.__init__()
-            reward = -1  # FIXME придумайте стратегию награды/наказания
+            reward = -1
 
         # draw sprites
         SCREEN.blit(IMAGES['background'], (0, 0))
@@ -142,9 +160,12 @@ class GameState:
         playerSurface = pygame.transform.rotate(IMAGES['player'][self.playerIndex], visibleRot)
         SCREEN.blit(playerSurface, (self.playerx, self.playery))
 
+        showScore(self.score)
+
         image_data = pygame.surfarray.array3d(pygame.display.get_surface())
         pygame.display.update()
-        FPSCLOCK.tick(FPS)
+        if not fps is None:
+            FPSCLOCK.tick(fps)
 
         return image_data, reward, terminal
 

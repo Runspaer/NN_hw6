@@ -17,10 +17,8 @@ def main():
                 sys.exit()
             if event.type == KEYDOWN and (event.key == K_SPACE or event.key == K_UP):
                 input_actions = [0, 1]
-            else:
-                input_actions = [1, 0]
 
-        action_terminal.frame_step(input_actions)
+        action_terminal.frame_step(input_actions,30)
 
 
 if __name__ == '__main__':
